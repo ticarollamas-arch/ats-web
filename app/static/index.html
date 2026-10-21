@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ATS Currículo — Otimizador</title>
+<meta name="description" content="Monte, audite e adapte seu currículo para ATS e LinkedIn, sem inventar nada.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23e8590c'/%3E%3Cpath d='M9 8h10l4 4v12H9z' fill='none' stroke='white' stroke-width='2'/%3E%3Cpath d='M12 17h8M12 21h6' stroke='white' stroke-width='2'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="static/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="logo">ATS</span><div><b>Otimizador de Currículo</b><small>ATS · LinkedIn · zero invenção</small></div></div>
+  <nav id="tabs" role="tablist">
+    <button role="tab" data-tab="editor" class="on">Currículo</button>
+    <button role="tab" data-tab="analise">Análise da vaga</button>
+    <button role="tab" data-tab="auditar">Auditar arquivo</button>
+    <button role="tab" data-tab="linkedin">LinkedIn</button>
+    <button role="tab" data-tab="guia">Guia</button>
+  </nav>
+</header>
+
+<main>
+<!-- ============ EDITOR ============ -->
+<section id="tab-editor" class="tab on">
+  <div class="toolbar">
+    <button class="btn primary" id="dlPdf">Baixar PDF</button>
+    <button class="btn" id="dlDocx">Baixar DOCX</button>
+    <select id="lang" title="Idioma dos títulos das seções"><option value="pt">Títulos em português</option><option value="en">Títulos em inglês</option></select>
+    <span class="sp"></span>
+    <button class="btn ghost" id="loadEx">Carregar exemplo</button>
+    <button class="btn ghost" id="impJson">Importar JSON</button>
+    <button class="btn ghost" id="expJson">Exportar JSON</button>
+    <button class="btn ghost danger" id="clear">Limpar</button>
+    <input type="file" id="jsonFile" accept=".json,application/json" hidden>
+  </div>
+  <div class="rule"><b>Regra de ouro:</b> só coloque fatos reais — empregadores, cargos, datas e números. Se você não tem a métrica exata, use aproximação honesta (“~”, “cerca de”) <i>apenas</i> se for verdade. Veja a aba Guia &rsaquo; Proxies de métricas.</div>
+  <div class="cols">
+    <div class="form" id="form"></div>
+    <aside class="side">
+      <div class="card">
+        <h3>Checagem rápida</h3>
+        <ul id="quick" class="checks"></ul>
+      </div>
+      <div class="card">
+        <h3>Prévia (texto que o ATS lê)</h3>
+        <pre id="preview" class="preview"></pre>
+      </div>
+      <details class="card"><summary>JSON do currículo</summary>
+        <textarea id="json" spellcheck="false"></textarea>
+        <button class="btn" id="applyJson">Aplicar JSON</button>
+      </details>
+    </aside>
+  </div>
+</section>
+
+<!-- ============ ANALISE ============ -->
+<section id="tab-analise" class="tab">
+  <div class="cols two">
+    <div>
+      <div class="card">
+        <h3>Descrição da vaga</h3>
+        <p class="muted">Cole o texto completo da vaga. Dica: títulos como “Requisitos” e “Desejável/Diferencial” separam o que é obrigatório do que é bônus.</p>
+        <textarea id="jd" rows="14" placeholder="Cole aqui a descrição da vaga…"></textarea>
+        <details><summary>Comparar com o perfil original (opcional, checagem de veracidade)</summary>
+          <p class="muted">Cole o JSON do seu perfil mestre/currículo original. A ferramenta avisa se empregador, cargo, datas ou identidade mudaram.</p>
+          <textarea id="source" rows="6" spellcheck="false" placeholder='{"basics": {...}, "experience": [...]}'></textarea>
+        </details>
+        <button class="btn primary" id="runAnalyze">Analisar currículo atual</button>
+      </div>
+    </div>
+    <div id="analysis"><div class="card empty">Os resultados aparecem aqui.</div></div>
+  </div>
+</section>
+
+<!-- ============ AUDITAR ============ -->
+<section id="tab-auditar" class="tab">
+  <div class="cols two">
+    <div class="card">
+      <h3>Auditar um PDF ou DOCX existente</h3>
+      <p class="muted">Detecta tabelas, colunas, caixas de texto, cabeçalho/rodapé, imagens, PDF escaneado e títulos fora do padrão. O arquivo é lido na hora e não é guardado.</p>
+      <label class="drop" id="drop">
+        <input type="file" id="auditFile" accept=".pdf,.docx" hidden>
+        <span id="dropTxt">Arraste o arquivo aqui ou clique para escolher (.pdf, .docx, até 6 MB)</span>
+      </label>
+      <label class="lbl">Vaga (opcional, para cobertura de palavras-chave)</label>
+      <textarea id="auditJd" rows="6" placeholder="Cole a descrição da vaga…"></textarea>
+      <button class="btn primary" id="runAudit">Auditar arquivo</button>
+    </div>
+    <div id="auditOut"><div class="card empty">Envie um arquivo para ver o relatório.</div></div>
+  </div>
+</section>
+
+<!-- ============ LINKEDIN ============ -->
+<section id="tab-linkedin" class="tab">
+  <div class="cols two">
+    <div class="card">
+      <h3>Campos do LinkedIn</h3>
+      <p class="muted">Contadores com os limites reais da plataforma. Coloque a palavra-chave principal no começo.</p>
+      <label class="lbl">Título / Headline <span class="cnt" data-for="li_head" data-max="220"></span></label>
+      <textarea id="li_head" rows="3" maxlength="400" placeholder="Cargo-alvo | especialidade 1 | especialidade 2 | resultado de destaque"></textarea>
+      <label class="lbl">Sobre / About <span class="cnt" data-for="li_about" data-max="2600"></span></label>
+      <textarea id="li_about" rows="12" maxlength="3500" placeholder="Gancho nos primeiros ~300 caracteres, história em 1ª pessoa, resultados e chamada para contato."></textarea>
+      <label class="lbl">Cargo atual — descrição <span class="cnt" data-for="li_exp" data-max="2000"></span></label>
+      <textarea id="li_exp" rows="6" maxlength="3000"></textarea>
+      <label class="lbl">Habilidades (separadas por vírgula; as 3 primeiras ficam fixadas)</label>
+      <textarea id="li_skills" rows="2" placeholder="Python, SQL, Gestão de projetos"></textarea>
+      <button class="btn" id="liFromResume">Preencher a partir do currículo</button>
+    </div>
+    <div>
+      <div class="card"><h3>Checklist</h3><ul id="liChecks" class="checks"></ul></div>
+      <div class="card"><h3>Lembretes</h3>
+        <ul class="plain">
+          <li>URL personalizada: <code>linkedin.com/in/seu-nome</code>.</li>
+          <li>Foto nítida e banner coerentes com a área.</li>
+          <li>Ative “Open to Work” só para recrutadores se estiver empregado.</li>
+          <li>Pelo menos 5 habilidades relevantes e algumas recomendações.</li>
+          <li>Mesmo vocabulário do currículo: o recrutador busca por palavras exatas.</li>
+        </ul>
+        <p class="muted">Detalhes por campo na aba Guia &rsaquo; LinkedIn.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ GUIA ============ -->
+<section id="tab-guia" class="tab">
+  <div class="guide">
+    <ul id="guideList" class="glist"></ul>
+    <article id="guideBody" class="md"><p class="muted">Carregando…</p></article>
+  </div>
+</section>
+</main>
+
+<footer>Ferramenta heurística: a “cobertura” é uma <b>estimativa</b> de palavras-chave, não a nota de nenhum ATS real. Baseado no projeto open source <i>resume-ats-linkedin-optimizer</i> (MIT).</footer>
+<div id="toast" role="status"></div>
+<script src="static/app.js"></script>
+</body>
+</html>
