@@ -1,105 +1,73 @@
-# ATS Currículo — Otimizador (web)
+<p align="center"><img src="assets/banner.svg" alt="ATS Currículo — editor, auditoria e análise de vaga para currículos ATS" width="100%"></p>
 
-Versão web do projeto *resume-ats-linkedin-optimizer*, feita para rodar em
-**https://osachadinhosdashopee.com.br/ats** (nginx + Cloudflare).
+# ATS Currículo — otimizador web de currículos para sistemas ATS
+
+Aplicação web em **Python (Flask)** para montar e revisar **currículos compatíveis com ATS** (*Applicant Tracking Systems*). Ela exporta o currículo em **PDF e DOCX de coluna única**, compara o currículo com a descrição de uma vaga, audita arquivos já prontos em busca de problemas de leitura e traz guias de LinkedIn e carta de apresentação. O princípio é **não inventar nada**: a ferramenta só organiza, formata e avisa.
+
+## Recursos
 
 | Aba | Função |
 |---|---|
-| Currículo | Editor com checagem rápida e prévia do texto que o ATS lê. Exporta **PDF** (A4) e **DOCX** de coluna única, com títulos em português ou inglês. Import/export em JSON. |
-| Análise da vaga | Cola a vaga e vê a **estimativa** de cobertura de palavras-chave (obrigatórias x desejáveis), clichês/verbos inflados e checagem de veracidade contra o seu perfil original. |
-| Auditar arquivo | Envia um PDF/DOCX e detecta tabelas, colunas, caixas de texto, cabeçalho/rodapé, imagens, PDF escaneado, títulos fora do padrão, e-mail/telefone/datas. |
-| LinkedIn | Contadores com os limites reais (título 220, sobre 2600) e checklist. |
-| Guia | Os guias do projeto original (ATS, bullets, palavras-chave, LinkedIn, mitos, carta). Estão em inglês. |
+| **Currículo** | Editor com checagem rápida e prévia do texto que o ATS lê; exporta PDF (A4) e DOCX com títulos em português ou inglês; importa e exporta JSON |
+| **Análise da vaga** | Estimativa de cobertura de palavras-chave (obrigatórias e desejáveis), alerta de clichês e verbos inflados, checagem de veracidade contra o perfil original |
+| **Auditar arquivo** | Envia um PDF/DOCX e detecta tabelas, colunas, caixas de texto, cabeçalho/rodapé, imagens, PDF escaneado, títulos fora do padrão e dados de contato |
+| **LinkedIn** | Contadores com os limites reais (título 220, sobre 2.600) e checklist |
+| **Guia** | Guias de ATS, bullets, palavras-chave, LinkedIn, mitos e carta de apresentação (em inglês) |
 
-Princípio: **zero invenção**. A ferramenta nunca cria dados; só organiza, formata e avisa.
-Nada fica guardado no servidor: o currículo fica no `localStorage` do navegador e os
-arquivos enviados são lidos em memória e descartados.
+**Privacidade**: nada fica no servidor. O currículo fica no `localStorage` do navegador e os arquivos enviados são lidos em memória e descartados.
 
-## Instalar (Debian/Ubuntu)
+## Instalação
+
+Requisitos: **Python 3.10+**. Para produção, Debian/Ubuntu com Nginx.
 
 ```bash
-unzip ats-web.zip && cd ats-web
+git clone https://github.com/ticarollamas-arch/ats-web.git
+cd ats-web
+pip install -r requirements.txt
+```
+
+### Servidor (Debian/Ubuntu)
+
+```bash
 sudo ./install.sh
 ```
 
-O script copia tudo para `/opt/ats-web`, cria um venv, instala as dependências, sobe o serviço
-`ats-web` (gunicorn em `127.0.0.1:8095`) e grava o snippet em `/etc/nginx/snippets/ats.conf`.
+O script instala em `/opt/ats-web`, cria um ambiente virtual, sobe o serviço `ats-web` (Gunicorn em `127.0.0.1:8095`) e grava o snippet do Nginx em `/etc/nginx/snippets/ats.conf`. Depois, inclua `include snippets/ats.conf;` no bloco `server` do domínio e recarregue o Nginx. Sem um `server` existente, use `deploy/nginx-standalone.conf`.
 
-Depois, dentro do `server { }` do seu domínio:
-
-```nginx
-include snippets/ats.conf;
-```
+## Como usar
 
 ```bash
-sudo nginx -t && sudo systemctl reload nginx
+cd app && python3 server.py      # http://127.0.0.1:8095/
 ```
 
-Se o domínio ainda não tem `server`, use `deploy/nginx-standalone.conf` como base.
-O `/ats` (sem barra) redireciona para `/ats/`; isso é necessário porque o frontend usa caminhos relativos.
+| Rota | Função |
+|---|---|
+| `POST /api/analyze` | Análise do currículo contra a vaga |
+| `POST /api/render` | Gera o PDF ou o DOCX |
+| `POST /api/audit` | Audita um arquivo enviado |
+| `GET /api/guides`, `/api/schema`, `/api/example` | Guias, schema JSON e currículo de exemplo |
+| `GET /healthz` | Verificação de saúde |
 
-## Cloudflare
+Operação do serviço: `systemctl status ats-web`, `journalctl -u ats-web -f`.
 
-**Opção A: servidor com IP público**
-1. DNS: registro `A` de `osachadinhosdashopee.com.br` apontando para o IP do servidor, com a nuvem **laranja** (Proxied).
-2. SSL/TLS: modo **Full** (ou Full strict, com certificado de origem ou Let's Encrypt no nginx).
-   O modo Flexible funciona sem HTTPS na origem, mas é menos seguro.
-3. Para HTTPS na origem: `sudo certbot --nginx -d osachadinhosdashopee.com.br`.
+### Publicação com Cloudflare
 
-**Opção B: Cloudflare Tunnel (sem abrir portas; bom para rodar do seu próprio computador)**
-```bash
-cloudflared tunnel login
-cloudflared tunnel create ats
-cloudflared tunnel route dns ats osachadinhosdashopee.com.br
-```
-`~/.cloudflared/config.yml`:
-```yaml
-tunnel: ats
-credentials-file: /home/SEU_USUARIO/.cloudflared/<ID>.json
-ingress:
-  - hostname: osachadinhosdashopee.com.br
-    service: http://localhost:80      # nginx local; o /ats é resolvido pelo snippet
-  - service: http_status:404
-```
-```bash
-cloudflared tunnel run ats
-```
-Se o domínio já serve outro site, o `/ats` entra só pelo `include`; o resto não muda.
-
-## Testar sem nginx
-
-```bash
-pip install -r requirements.txt
-cd app && python3 server.py        # http://127.0.0.1:8095/
-```
-
-## Operação
-
-```bash
-systemctl status ats-web
-journalctl -u ats-web -f
-curl http://127.0.0.1:8095/healthz
-```
-
-Para atualizar: copie os arquivos novos para `/opt/ats-web/app` e rode `sudo systemctl restart ats-web`.
+- **IP público**: registro `A` com proxy ativado e SSL **Full** (com certificado na origem, por exemplo via Certbot).
+- **Cloudflare Tunnel**: `cloudflared tunnel create ats` e um `ingress` apontando para o Nginx local, sem abrir portas.
 
 ## Segurança
 
-- O serviço só escuta em `127.0.0.1`; upload limitado a 6 MB; sem banco, sem login, sem dados persistidos.
-- Não há login: quem tiver o link usa a ferramenta. Para restringir, use **Cloudflare Access** em `/ats*`
-  ou `auth_basic` no `location /ats/` do nginx.
-- Contra abuso, crie uma regra de *Rate Limiting* na Cloudflare para `/ats/api/*`.
+- O serviço escuta só em `127.0.0.1`, com upload limitado a 6 MB, sem banco e sem dados persistidos.
+- Não há login. Para restringir o acesso, use Cloudflare Access ou `auth_basic` no Nginx, e uma regra de rate limiting para `/ats/api/*`.
 
-## Estrutura
+## Tecnologias
 
-```
-app/server.py        API Flask (render, analyze, audit, guides)
-app/audit.py         auditoria de PDF/DOCX
-app/resume_tools.py  núcleo do projeto original (adaptado para português e A4)
-app/static/          frontend (HTML/CSS/JS, sem build)
-app/data/            guias e schema do projeto original
-deploy/              snippet nginx, serviço systemd
-install.sh           instalador
-```
+Python · Flask · Gunicorn · python-docx · ReportLab · pypdf · HTML/CSS/JavaScript · Nginx · systemd · Cloudflare
 
-Licença MIT (ver `LICENSE`), baseada em *resume-ats-linkedin-optimizer*.
+## Créditos
+
+Versão web baseada no projeto *resume-ats-linkedin-optimizer*, de João Vitor Amaral, distribuído sob a licença MIT. O aviso de copyright original está preservado em [LICENSE](LICENSE).
+
+## Licença
+
+MIT. Veja [LICENSE](LICENSE) (Copyright © 2026 João Vitor Amaral).
